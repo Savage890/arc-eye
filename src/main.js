@@ -5,16 +5,6 @@
 
 const CG_API = 'https://api.coingecko.com/api/v3';
 
-// Circle Developer-Controlled Wallet (registered via SDK)
-const CIRCLE_WALLET = {
-    id: '2188818f-5d80-53e9-b610-3295805eb46e',
-    address: '0x231c181751808a09216a6fbe910c9fbd4358d288',
-    walletSetId: 'f2bd19de-261d-57bd-9d04-956fbc6eb37e',
-    blockchain: 'ARC-TESTNET',
-    accountType: 'EOA',
-    state: 'LIVE'
-};
-
 const IDS = [
     'bitcoin','ethereum','usd-coin','tether','solana','cardano',
     'avalanche-2','chainlink','uniswap','aave','maker',
@@ -93,14 +83,10 @@ function initBg() {
 async function boot() {
     const bar = $('bootBarFill'), status = $('bootStatus'), log = $('bootLog');
     const steps = [
-        [8,  'Initializing ArcEye core...'],
-        [18, 'Connecting to Arc Network...'],
-        [30, 'Authenticating Circle Wallet...'],
-        [42, `Wallet ${shortAddr(CIRCLE_WALLET.address)} verified ✓`],
-        [55, 'Fetching CoinGecko market feed...'],
-        [68, 'Loading Lightweight Charts engine...'],
-        [80, 'Rendering UI components...'],
-        [92, 'Syncing wallet services...'],
+        [20, 'Initializing ArcEye core...'],
+        [40, 'Connecting to Arc Network...'],
+        [60, 'Fetching CoinGecko market feed...'],
+        [80, 'Loading Lightweight Charts engine...'],
         [100,'All systems operational ✓', 'success']
     ];
     for (const [pct, msg, cls] of steps) {
@@ -130,7 +116,7 @@ function closeWalletModal() {
 
 async function connectWithProvider(provider) {
     closeWalletModal();
-    let addr = CIRCLE_WALLET.address;
+    let addr = null;
     connectedProvider = provider;
 
     if (provider === 'metamask' && window.ethereum) {
@@ -138,16 +124,15 @@ async function connectWithProvider(provider) {
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             if (accounts.length) addr = accounts[0];
         } catch (e) {
-            showToast('MetaMask connection rejected', 'error');
+            showToast('Connection rejected', 'error');
             return;
         }
-    } else if (provider === 'metamask') {
-        showToast('MetaMask not detected — using Circle wallet', 'warning');
-        connectedProvider = 'circle';
-    } else if (provider === 'walletconnect' || provider === 'coinbase') {
-        showToast(`${provider === 'walletconnect' ? 'WalletConnect' : 'Coinbase'} — demo mode, using Circle wallet`, 'info');
-        connectedProvider = 'circle';
+    } else {
+        showToast(`${provider.charAt(0).toUpperCase() + provider.slice(1)} integration required for mainnet`, 'info');
+        return;
     }
+
+    if (!addr) return;
 
     walletConnected = true;
     const btn = $('walletBtn');
@@ -159,11 +144,8 @@ async function connectWithProvider(provider) {
     $('bridgeExecBtn').textContent = 'Bridge Now';
     $('bridgeExecBtn').classList.add('ready');
 
-    $('swapFromBal').textContent = 'Balance: 100.00 USDC';
+    $('swapFromBal').textContent = 'Balance: 0.00';
     $('swapToBal').textContent = 'Balance: 0.00';
-
-    $('circleDot').classList.add('live');
-    $('circleLabel').textContent = 'Circle Connected';
 
     $('vaultStatus').textContent = 'Active';
     updateVault();
@@ -185,10 +167,6 @@ function disconnectWallet() {
 
     $('swapFromBal').textContent = 'Balance: 0.00';
     $('swapToBal').textContent = 'Balance: 0.00';
-
-    $('circleDot').classList.remove('live');
-    $('circleDot').classList.add('ready');
-    $('circleLabel').textContent = 'Circle Ready';
 
     $('vaultStatus').textContent = 'Locked';
     $('vaultTotal').textContent = '$0.00';
@@ -218,14 +196,10 @@ async function updateVault() {
         } catch(e) { console.warn('[ArcEye] Could not read wallet balance:', e); }
     }
 
-    // Build holdings from wallet — demo amounts for Circle, real for MetaMask
+    // Build holdings from real wallet only
     const holdings = connectedProvider === 'metamask' ? [
         { id:'ethereum', amount: ethBalance, cost: ethBalance * (tokens.find(t=>t.id==='ethereum')?.current_price || 0) * 0.95 },
-    ] : [
-        { id:'usd-coin', amount:100, cost:100 },
-        { id:'ethereum', amount:0.025, cost:65 },
-        { id:'bitcoin', amount:0.001, cost:70 }
-    ];
+    ] : [];
 
     let total = 0, pnl = 0, count = 0;
     const html = holdings.map(h => {
@@ -427,22 +401,6 @@ function showOverview(g) {
         <div class="mo-item"><span class="mo-label">Active Cryptos</span><span class="mo-val">${g.active_cryptocurrencies?.toLocaleString()||'--'}</span></div>`;
 }
 
-// ──────────────────── Whale Feed ────────────────────
-function showWhales(arr) {
-    const el = $('whaleList');
-    const big = arr.filter(t => t.total_volume > 1e8).slice(0,5);
-    el.innerHTML = big.map((t, i) => {
-        const amt = (t.total_volume*(Math.random()*0.01+0.001)).toFixed(0);
-        const act = Math.random()>0.5?'bought':'sold';
-        const addr = '0x'+Math.random().toString(16).slice(2,6)+'...'+Math.random().toString(16).slice(2,6);
-        const m = Math.floor(Math.random()*60);
-        return `<div class="whale-item" style="animation-delay:${i*80}ms">
-            <div class="w-top"><span class="w-amount">${usd(+amt)}</span><span class="w-time">${m}m ago</span></div>
-            <p class="w-msg"><span class="w-addr">${addr}</span> ${act} ${t.symbol.toUpperCase()}</p>
-        </div>`;
-    }).join('');
-}
-
 // ──────────────────── Trending ────────────────────
 function showTrending(data) {
     const el = $('trendingBody');
@@ -637,10 +595,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await boot();
 
-    // Circle wallet is pre-registered — show as ready
-    $('circleDot').classList.add('ready');
-    $('circleLabel').textContent = 'Circle Ready';
-
     try {
         const [mkt, glob, trend] = await Promise.all([
             cgApi(`${CG_API}/coins/markets?vs_currency=usd&ids=${IDS.join(',')}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`),
@@ -671,7 +625,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Right panel
         showOverview(glob.data);
-        showWhales(mkt);
         if (walletConnected) updateVault();
 
         // CoinGecko status
@@ -694,7 +647,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fillTable('gainersBody', s2.slice(0,7));
                 s2.reverse();
                 fillTable('losersBody', s2.slice(0,7));
-                showWhales(fresh);
                 if (walletConnected) updateVault();
                 $('lastUpdate').textContent = new Date().toLocaleTimeString();
             } catch(e) { console.error('[ArcEye] Refresh:', e); }
