@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArcEye | Real-Time Arc Network Data Terminal</title>
+<meta name="description" content="ArcEye — a real-time data terminal for tracking crypto markets on the Arc Network. Live prices, charts, whale tracking, and Circle wallet integration.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+<!-- Particle Background -->
+<canvas id="bgCanvas"></canvas>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Wallet Connect Modal -->
+<div class="modal-overlay" id="walletModal">
+    <div class="wallet-modal">
+        <div class="wm-header">
+            <h2>Connect Wallet</h2>
+            <button class="wm-close" id="walletModalClose"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+        </div>
+        <p class="wm-subtitle">Choose a wallet to connect to ArcEye Terminal</p>
+        <div class="wm-options">
+            <div class="wm-option" id="wmMetamask">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask">
+                <div class="wm-opt-info">
+                    <div class="wm-opt-name">MetaMask</div>
+                    <div class="wm-opt-desc">Connect using browser extension</div>
+                </div>
+                <span class="wm-opt-tag">Popular</span>
+            </div>
+            <div class="wm-option" id="wmWalletConnect">
+                <img src="https://avatars.githubusercontent.com/u/37784886" alt="WalletConnect">
+                <div class="wm-opt-info">
+                    <div class="wm-opt-name">WalletConnect</div>
+                    <div class="wm-opt-desc">Scan with mobile wallet</div>
+                </div>
+            </div>
+            <div class="wm-option" id="wmCoinbase">
+                <img src="https://avatars.githubusercontent.com/u/18060234" alt="Coinbase">
+                <div class="wm-opt-info">
+                    <div class="wm-opt-name">Coinbase Wallet</div>
+                    <div class="wm-opt-desc">Connect via Coinbase</div>
+                </div>
+            </div>
+        </div>
+        <div class="wm-divider">or use developer wallet</div>
+        <div class="wm-option" id="wmCircle">
+            <img src="https://avatars.githubusercontent.com/u/35635051" alt="Circle">
+            <div class="wm-opt-info">
+                <div class="wm-opt-name">Circle Dev Wallet</div>
+                <div class="wm-opt-desc">Pre-registered developer-controlled wallet</div>
+            </div>
+            <span class="wm-opt-tag">Arc</span>
+        </div>
+        <div class="wm-circle-info">
+            <i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;"></i>
+            <span>Circle wallet is pre-configured for Arc Testnet with USDC support</span>
+        </div>
+    </div>
+</div>
+
+<!-- Boot Screen -->
+<div class="boot-screen" id="bootScreen">
+    <div class="boot-content">
+        <div class="boot-logo">
+            <div class="boot-icon-ring">
+                <svg viewBox="0 0 48 48" width="64" height="64">
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="url(#bootGrad)" stroke-width="1.5" stroke-dasharray="4 3"/>
+                    <circle cx="24" cy="24" r="12" fill="none" stroke="url(#bootGrad)" stroke-width="1"/>
+                    <circle cx="24" cy="24" r="4" fill="url(#bootGrad)"/>
+                    <defs><linearGradient id="bootGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5d44c"/><stop offset="100%" stop-color="#e0a800"/></linearGradient></defs>
+                </svg>
+            </div>
+            <h1>ArcEye</h1>
+        </div>
+        <p class="boot-tagline">Real-Time Data Terminal</p>
+        <div class="boot-progress">
+            <div class="boot-bar"><div class="boot-bar-fill" id="bootBarFill"></div></div>
+            <div class="boot-status" id="bootStatus">Initializing...</div>
+        </div>
+        <div class="boot-log" id="bootLog"></div>
+    </div>
+</div>
+
+<!-- App Container -->
+<div class="app-container" id="appContainer">
+
+    <!-- Header -->
+    <header>
+        <div class="header-left">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 28 28" width="24" height="24">
+                    <circle cx="14" cy="14" r="11" fill="none" stroke="url(#lg)" stroke-width="1.5"/>
+                    <circle cx="14" cy="14" r="6" fill="none" stroke="url(#lg)" stroke-width="1"/>
+                    <circle cx="14" cy="14" r="2" fill="url(#lg)"/>
+                    <defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5d44c"/><stop offset="100%" stop-color="#e0a800"/></linearGradient></defs>
+                </svg>
+                <span>ArcEye</span>
+            </div>
+            <div class="network-badge">
+                <div class="pulse-dot"></div>
+                <span>Arc Testnet</span>
+                <span class="badge-live">LIVE</span>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="search-wrapper">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="tokenSearch" placeholder="Search tokens on Arc..." autocomplete="off">
+                <span class="search-shortcut">/</span>
+                <div id="searchDropdown" class="search-dropdown"></div>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <div class="header-stats">
+                <div class="h-stat">
+                    <span class="h-stat-label">BTC</span>
+                    <span class="h-stat-value" id="hBtc">--</span>
+                </div>
+                <div class="h-stat-sep"></div>
+                <div class="h-stat">
+                    <span class="h-stat-label">ETH</span>
+                    <span class="h-stat-value" id="hEth">--</span>
+                </div>
+                <div class="h-stat-sep"></div>
+                <div class="h-stat">
+                    <span class="h-stat-label">MCAP</span>
+                    <span class="h-stat-value" id="hMcap">--</span>
+                </div>
+            </div>
+            <a href="https://faucet.circle.com" target="_blank" class="faucet-btn">
+                <i data-lucide="droplets" style="width:14px;height:14px;"></i>
+                <span>Faucet</span>
+            </a>
+            <button class="wallet-btn" id="walletBtn">
+                <i data-lucide="wallet" style="width:14px;height:14px;"></i>
+                <span>Connect</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside>
+        <nav>
+            <div class="nav-section">
+                <span class="nav-label">EXPLORE</span>
+                <a class="nav-link active" data-view="overview">
+                    <i data-lucide="layout-dashboard"></i><span>Overview</span>
+                </a>
+                <a class="nav-link" data-view="trending">
+                    <i data-lucide="flame"></i><span>Trending</span>
+                </a>
+                <a class="nav-link" data-view="gainers">
+                    <i data-lucide="trending-up"></i><span>Top Gainers</span>
+                </a>
+                <a class="nav-link" data-view="losers">
+                    <i data-lucide="trending-down"></i><span>Top Losers</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-label">CATEGORIES</span>
+                <a class="nav-link" data-view="stablecoins">
+                    <i data-lucide="dollar-sign"></i><span>Stablecoins</span>
+                </a>
+                <a class="nav-link" data-view="defi">
+                    <i data-lucide="layers"></i><span>DeFi</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <span class="nav-label">ARC TOOLS</span>
+                <a class="nav-link" onclick="window.open('https://faucet.circle.com','_blank')">
+                    <i data-lucide="droplets"></i><span>Faucet</span>
+                </a>
+                <a class="nav-link" onclick="window.open('https://testnet.arcscan.app','_blank')">
+                    <i data-lucide="scan"></i><span>Explorer</span>
+                </a>
+                <a class="nav-link" onclick="window.open('https://developers.circle.com','_blank')">
+                    <i data-lucide="book-open"></i><span>Docs</span>
+                </a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="api-indicator">
+                <div class="api-dot" id="apiDot"></div>
+                <span id="apiLabel">Connecting...</span>
+            </div>
+            <div class="api-indicator">
+                <div class="api-dot" id="circleDot"></div>
+                <span id="circleLabel">Circle...</span>
+            </div>
+            <div class="last-update">
+                <i data-lucide="clock" style="width:10px;height:10px;"></i>
+                <span id="lastUpdate">--:--:--</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Chart Section -->
+        <section class="chart-section glass-card">
+            <div class="chart-top">
+                <div class="active-token">
+                    <img id="tokenImg" src="" alt="" class="token-avatar">
+                    <div>
+                        <div class="token-name-row">
+                            <h2 id="tokenName">Loading...</h2>
+                            <span class="token-rank" id="tokenRank">#--</span>
+                        </div>
+                        <span class="token-pair" id="tokenPair">--/USD</span>
+                    </div>
+                </div>
+                <div class="price-display">
+                    <div class="price-main" id="priceMain">$--</div>
+                    <div class="price-change">
+                        <span class="change-value" id="changeValue">--%</span>
+                        <span class="change-period">24h</span>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-controls">
+                <div class="timeframe-group">
+                    <button class="tf-btn" data-days="1">1D</button>
+                    <button class="tf-btn active" data-days="7">7D</button>
+                    <button class="tf-btn" data-days="30">1M</button>
+                    <button class="tf-btn" data-days="90">3M</button>
+                    <button class="tf-btn" data-days="365">1Y</button>
+                </div>
+                <div class="chart-type-btns">
+                    <button class="ct-btn active" title="Area"><i data-lucide="area-chart" style="width:14px;height:14px;"></i></button>
+                    <button class="ct-btn" title="Candlestick"><i data-lucide="candlestick-chart" style="width:14px;height:14px;"></i></button>
+                </div>
+            </div>
+            <div class="chart-canvas" id="chartContainer"></div>
+            <div class="stats-bar">
+                <div class="stat-chip"><span class="sc-label">Market Cap</span><span class="sc-value" id="sMcap">--</span></div>
+                <div class="stat-chip"><span class="sc-label">24h Volume</span><span class="sc-value" id="sVol">--</span></div>
+                <div class="stat-chip"><span class="sc-label">Supply</span><span class="sc-value" id="sSupply">--</span></div>
+                <div class="stat-chip"><span class="sc-label">ATH</span><span class="sc-value" id="sAth">--</span></div>
+                <div class="stat-chip"><span class="sc-label">ATL</span><span class="sc-value" id="sAtl">--</span></div>
+                <div class="stat-chip"><span class="sc-label">24h Range</span><span class="sc-value" id="sRange">--</span></div>
+            </div>
+        </section>
+
+        <!-- Data Grid -->
+        <div class="data-grid">
+            <!-- Trending -->
+            <div class="data-card glass-card">
+                <div class="dc-header">
+                    <div class="dc-title">
+                        <i data-lucide="flame" style="color:#ff6b35;width:16px;height:16px;"></i>
+                        <h3>Trending</h3>
+                    </div>
+                    <span class="badge-live">LIVE</span>
+                </div>
+                <table class="token-table">
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Price</th>
+                            <th>24h</th>
+                            <th>AI Sentiment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trendingBody">
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Top Gainers -->
+            <div class="data-card glass-card">
+                <div class="dc-header">
+                    <div class="dc-title">
+                        <i data-lucide="trending-up" style="color:var(--up);width:16px;height:16px;"></i>
+                        <h3>Top Gainers</h3>
+                    </div>
+                    <span class="change-badge up">24h</span>
+                </div>
+                <table class="token-table">
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Price</th>
+                            <th>24h</th>
+                            <th>AI Sentiment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gainersBody">
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Top Losers -->
+            <div class="data-card glass-card">
+                <div class="dc-header">
+                    <div class="dc-title">
+                        <i data-lucide="trending-down" style="color:var(--dn);width:16px;height:16px;"></i>
+                        <h3>Top Losers</h3>
+                    </div>
+                    <span class="change-badge down">24h</span>
+                </div>
+                <table class="token-table">
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Price</th>
+                            <th>24h</th>
+                            <th>AI Sentiment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="losersBody">
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                        <tr><td colspan="4"><div class="skeleton-row"></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Vault Section -->
+        <section class="vault-section glass-card">
+            <div class="vault-header">
+                <div class="vault-title-row">
+                    <div class="dc-title">
+                        <i data-lucide="shield" style="color:var(--pri);width:18px;height:18px;"></i>
+                        <h3>Vault</h3>
+                        <span class="wm-opt-tag" id="vaultStatus">Locked</span>
+                    </div>
+                    <div class="vault-actions">
+                        <button class="vault-action-btn primary" id="vaultDepositBtn"><i data-lucide="plus" style="width:12px;height:12px;"></i> Deposit</button>
+                        <button class="vault-action-btn" id="vaultWithdrawBtn"><i data-lucide="minus" style="width:12px;height:12px;"></i> Withdraw</button>
+                        <button class="vault-action-btn" id="vaultStakeBtn"><i data-lucide="lock" style="width:12px;height:12px;"></i> Stake</button>
+                    </div>
+                </div>
+            </div>
+            <div class="vault-body">
+                <div class="vault-stats-row">
+                    <div class="vault-stat">
+                        <div class="vault-stat-label">Total Value</div>
+                        <div class="vault-stat-value" id="vaultTotal">$0.00</div>
+                    </div>
+                    <div class="vault-stat">
+                        <div class="vault-stat-label">24h P&L</div>
+                        <div class="vault-stat-value green" id="vaultPnl">+$0.00</div>
+                    </div>
+                    <div class="vault-stat">
+                        <div class="vault-stat-label">Assets</div>
+                        <div class="vault-stat-value" id="vaultAssetCount">0</div>
+                    </div>
+                    <div class="vault-stat">
+                        <div class="vault-stat-label">Network</div>
+                        <div class="vault-stat-value" style="color:var(--up);font-size:12px;">Arc Testnet</div>
+                    </div>
+                </div>
+                <div class="vault-holdings" id="vaultHoldings">
+                    <div style="text-align:center;color:var(--dim);font-size:11px;padding:24px;">Connect wallet to view holdings</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+        <!-- Market Overview -->
+        <div class="rp-card glass-card">
+            <div class="rp-header">
+                <i data-lucide="bar-chart-3" style="width:14px;height:14px;color:var(--pri);"></i>
+                <h3>Market Overview</h3>
+            </div>
+            <div id="marketOverview" class="market-overview">
+                <div class="skeleton-block"></div>
+            </div>
+        </div>
+
+        <!-- Swap -->
+        <div class="rp-card glass-card">
+            <div class="rp-header">
+                <i data-lucide="arrow-left-right" style="width:14px;height:14px;color:var(--pri);"></i>
+                <h3>Swap</h3>
+                <div class="swap-mode-toggle">
+                    <button class="smt-btn active">Market</button>
+                    <button class="smt-btn">Limit</button>
+                </div>
+            </div>
+            <div class="swap-ui" id="swapPanel">
+                <div class="swap-field">
+                    <div class="sf-top">
+                        <label>You pay</label>
+                        <span class="sf-balance" id="swapFromBal">Balance: 0.00</span>
+                    </div>
+                    <div class="sf-input-row">
+                        <input type="number" id="swapFrom" placeholder="0.00" step="any">
+                        <div class="sf-token">
+                            <img src="https://assets.coingecko.com/coins/images/6319/small/usdc.png" style="width:16px;height:16px;border-radius:50%;" alt="USDC">
+                            USDC
+                        </div>
+                    </div>
+                </div>
+                <div class="swap-arrow-wrapper">
+                    <button class="swap-flip-btn" id="swapFlip">
+                        <i data-lucide="arrow-down-up" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+                <div class="swap-field">
+                    <div class="sf-top">
+                        <label>You receive</label>
+                        <span class="sf-balance" id="swapToBal">Balance: 0.00</span>
+                    </div>
+                    <div class="sf-input-row">
+                        <input type="number" id="swapTo" placeholder="0.00" step="any" readonly>
+                        <div class="sf-token" id="swapToSymbol">BTC</div>
+                    </div>
+                </div>
+                <div class="swap-info">
+                    <div class="si-row"><span>Rate</span><span id="swapRate">--</span></div>
+                    <div class="si-row"><span>Slippage</span><span>0.5%</span></div>
+                    <div class="si-row"><span>Network</span><span>Arc Testnet</span></div>
+                    <div class="si-row"><span>Provider</span><span class="circle-tag">Circle</span></div>
+                </div>
+                <button class="swap-execute-btn" id="swapExecBtn">Connect Wallet to Swap</button>
+            </div>
+        </div>
+
+        <!-- Bridge -->
+        <div class="rp-card glass-card">
+            <div class="rp-header">
+                <i data-lucide="git-branch" style="width:14px;height:14px;color:#a78bfa;"></i>
+                <h3>Bridge</h3>
+                <span class="badge-live" style="background:#a78bfa;">CROSS-CHAIN</span>
+            </div>
+            <div class="swap-ui" id="bridgePanel">
+                <div class="bridge-chain-row">
+                    <select class="bridge-chain-select" id="bridgeFrom">
+                        <option value="ethereum">Ethereum</option>
+                        <option value="polygon">Polygon</option>
+                        <option value="arbitrum">Arbitrum</option>
+                        <option value="optimism">Optimism</option>
+                        <option value="avalanche">Avalanche</option>
+                    </select>
+                    <div class="bridge-arrow"><i data-lucide="arrow-right" style="width:16px;height:16px;"></i></div>
+                    <select class="bridge-chain-select" id="bridgeTo">
+                        <option value="arc-testnet" selected>Arc Testnet</option>
+                        <option value="ethereum">Ethereum</option>
+                        <option value="polygon">Polygon</option>
+                    </select>
+                </div>
+                <div class="swap-field">
+                    <div class="sf-top">
+                        <label>Amount to Bridge</label>
+                        <span class="sf-balance">Balance: 0.00</span>
+                    </div>
+                    <div class="sf-input-row">
+                        <input type="number" id="bridgeAmount" placeholder="0.00" step="any">
+                        <div class="sf-token">
+                            <img src="https://assets.coingecko.com/coins/images/6319/small/usdc.png" style="width:16px;height:16px;border-radius:50%;" alt="USDC">
+                            USDC
+                        </div>
+                    </div>
+                </div>
+                <div class="bridge-fee-info">
+                    <div class="bf-row"><span>Est. Time</span><span>~2 min</span></div>
+                    <div class="bf-row"><span>Bridge Fee</span><span>0.1%</span></div>
+                    <div class="bf-row"><span>Gas (est.)</span><span>~$0.50</span></div>
+                    <div class="bf-row"><span>You Receive</span><span id="bridgeReceive">0.00 USDC</span></div>
+                </div>
+                <button class="swap-execute-btn" id="bridgeExecBtn">Connect Wallet to Bridge</button>
+            </div>
+        </div>
+
+        <!-- Whale Activity -->
+        <div class="rp-card glass-card">
+            <div class="rp-header">
+                <i data-lucide="fish" style="width:14px;height:14px;color:var(--sec);"></i>
+                <h3>Whale Activity</h3>
+                <span class="badge-live">LIVE</span>
+            </div>
+            <div id="whaleList" class="whale-list">
+                <div class="skeleton-block" style="height:50px"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

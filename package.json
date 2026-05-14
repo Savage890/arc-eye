@@ -1,0 +1,27 @@
+{
+  "name": "arc-eye",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "bridge": "tsx --env-file=.env app-kit.ts bridge",
+    "swap": "tsx --env-file=.env app-kit.ts swap",
+    "send": "tsx --env-file=.env app-kit.ts send",
+    "balance": "tsx --env-file=.env wallet-ops.ts balance",
+    "wallets": "tsx --env-file=.env wallet-ops.ts wallets"
+  },
+  "dependencies": {
+    "@circle-fin/adapter-viem-v2": "^1.10.0",
+    "@circle-fin/app-kit": "^1.5.0",
+    "@circle-fin/developer-controlled-wallets": "^10.3.1",
+    "viem": "^2.48.11"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "vite": "^6.0.0"
+  }
+}
