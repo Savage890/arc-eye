@@ -507,6 +507,11 @@ function initTF() {
 }
 
 // ──────────────────── Swap ────────────────────
+const ARC_SWAP_ADDRESS = '0x2f04b35240929E473e0f9f55c6d8Db506bd3Efbc';
+const ARC_SWAP_ABI = [
+    "function swap() public payable"
+];
+
 function initSwap() {
     const from = $('swapFrom'), to = $('swapTo');
     from?.addEventListener('input', e => {
@@ -526,21 +531,22 @@ function initSwap() {
             try {
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
-                const userAddress = await signer.getAddress();
+                const contract = new ethers.Contract(ARC_SWAP_ADDRESS, ARC_SWAP_ABI, signer);
                 
                 showToast('Approve swap in MetaMask...', 'info');
-                // Execute a safe transaction that won't revert (since there is no DEX router yet)
-                const tx = await signer.sendTransaction({
-                    to: userAddress,
-                    value: 0,
-                    data: '0x'
-                });
+                
+                // Parse the native USDC input amount
+                const weiAmount = ethers.utils.parseEther(amount.toString());
+                
+                // Execute the real swap on your deployed smart contract
+                const tx = await contract.swap({ value: weiAmount });
                 
                 showToast(`Swap tx sent: ${tx.hash.substring(0,10)}...`, 'success');
                 await tx.wait();
-                showToast(`Swap confirmed successfully!`, 'success');
+                showToast(`Swap confirmed! You received EYE tokens.`, 'success');
             } catch(e) {
                 showToast(e.code === 4001 ? 'Transaction rejected' : 'Swap failed', 'error');
+                console.error(e);
                 return;
             }
         } else {
