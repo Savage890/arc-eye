@@ -224,25 +224,42 @@ async function updateVault() {
 }
 
 // ──────────────────── Vault Actions ────────────────────
+const ARC_VAULT_ADDRESS = '0x2E4A80Ee44e130a2b9fc04CE4BBE9cF7357dF347';
+const ARC_VAULT_ABI = [
+    "function deposit() public payable",
+    "function withdraw(uint256 amount) public",
+    "function balances(address) view returns (uint256)",
+    "function totalVaultBalance() view returns (uint256)"
+];
+
 function initVault() {
     $('vaultDepositBtn')?.addEventListener('click', async () => {
         if (!walletConnected) { openWalletModal(); return; }
         
-        if (connectedProvider === 'metamask' && window.ethereum) {
-            const amtStr = prompt('Enter ETH amount to deposit into vault:');
+        if (connectedProvider === 'metamask' && window.ethereum && window.ethers) {
+            const amtStr = prompt('Enter USDC amount to deposit into vault:');
             const amt = parseFloat(amtStr);
             if (!amt || amt <= 0) { showToast('Invalid amount', 'warning'); return; }
+            if (ARC_VAULT_ADDRESS === 'PASTE_YOUR_CONTRACT_ADDRESS_HERE') {
+                showToast('Please paste your Remix contract address in main.js', 'error'); return;
+            }
             try {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                const weiHex = '0x' + Math.floor(amt * 1e18).toString(16);
-                const txHash = await window.ethereum.request({
-                    method: 'eth_sendTransaction',
-                    params: [{ from: accounts[0], to: accounts[0], value: weiHex }]
-                });
-                showToast(`Deposit tx sent: ${txHash.substring(0,14)}...`, 'success');
-                setTimeout(() => updateVault(), 3000);
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const contract = new ethers.Contract(ARC_VAULT_ADDRESS, ARC_VAULT_ABI, signer);
+                
+                showToast('Approve transaction in MetaMask...', 'info');
+                // Parse amount (using 18 decimals since native gas tokens generally use 18)
+                const weiAmount = ethers.utils.parseEther(amt.toString());
+                const tx = await contract.deposit({ value: weiAmount });
+                
+                showToast(`Deposit tx sent: ${tx.hash.substring(0,10)}...`, 'success');
+                await tx.wait();
+                showToast(`Deposit confirmed!`, 'success');
+                updateVault();
             } catch(e) {
                 showToast(e.code === 4001 ? 'Transaction rejected' : 'Deposit failed', 'error');
+                console.error(e);
             }
         } else {
             showToast('Deposit queued on Arc Testnet (Circle wallet)', 'success');
@@ -253,21 +270,29 @@ function initVault() {
     $('vaultWithdrawBtn')?.addEventListener('click', async () => {
         if (!walletConnected) { openWalletModal(); return; }
         
-        if (connectedProvider === 'metamask' && window.ethereum) {
-            const amtStr = prompt('Enter ETH amount to withdraw from vault:');
+        if (connectedProvider === 'metamask' && window.ethereum && window.ethers) {
+            const amtStr = prompt('Enter USDC amount to withdraw from vault:');
             const amt = parseFloat(amtStr);
             if (!amt || amt <= 0) { showToast('Invalid amount', 'warning'); return; }
+            if (ARC_VAULT_ADDRESS === 'PASTE_YOUR_CONTRACT_ADDRESS_HERE') {
+                showToast('Please paste your Remix contract address in main.js', 'error'); return;
+            }
             try {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                const weiHex = '0x' + Math.floor(amt * 1e18).toString(16);
-                const txHash = await window.ethereum.request({
-                    method: 'eth_sendTransaction',
-                    params: [{ from: accounts[0], to: accounts[0], value: weiHex }]
-                });
-                showToast(`Withdraw tx sent: ${txHash.substring(0,14)}...`, 'success');
-                setTimeout(() => updateVault(), 3000);
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const contract = new ethers.Contract(ARC_VAULT_ADDRESS, ARC_VAULT_ABI, signer);
+                
+                showToast('Approve transaction in MetaMask...', 'info');
+                const weiAmount = ethers.utils.parseEther(amt.toString());
+                const tx = await contract.withdraw(weiAmount);
+                
+                showToast(`Withdraw tx sent: ${tx.hash.substring(0,10)}...`, 'success');
+                await tx.wait();
+                showToast(`Withdraw confirmed!`, 'success');
+                updateVault();
             } catch(e) {
                 showToast(e.code === 4001 ? 'Transaction rejected' : 'Withdraw failed', 'error');
+                console.error(e);
             }
         } else {
             showToast('Withdrawal queued on Arc Testnet', 'success');
@@ -526,8 +551,25 @@ function initSwap() {
     });
 }
 
-// ──────────────────── Bridge ────────────────────
-// Bridge transactions are sent through the user's wallet.
+// ──────────────────── Bridge (CCTP Real Implementation) ────────────────────
+// Uses Circle's official CCTP TokenMessenger on Arc Testnet
+const CCTP_TOKEN_MESSENGER = '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA';
+const USDC_NATIVE = '0x3600000000000000000000000000000000000000';
+
+const CCTP_ABI = [
+    "function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address burnToken) returns (uint64 _nonce)"
+];
+
+const DOMAINS = {
+    'ethereum': 0,
+    'avalanche': 1,
+    'optimism': 2,
+    'arbitrum': 3,
+    'base': 6,
+    'polygon': 7,
+    'arc-testnet': 7 // CCTP Domain 7 for Arc Testnet
+};
+
 function initBridge() {
     $('bridgeAmount')?.addEventListener('input', e => {
         const amt = parseFloat(e.target.value) || 0;
@@ -539,18 +581,55 @@ function initBridge() {
         if (!walletConnected) { openWalletModal(); return; }
         const amt = parseFloat($('bridgeAmount').value);
         if (!amt || amt <= 0) { showToast('Enter an amount to bridge', 'warning'); return; }
-        const fromChain = $('bridgeFrom').value, toChain = $('bridgeTo').value;
+        
+        const fromChain = $('bridgeFrom').value;
+        const toChain = $('bridgeTo').value;
+        const destDomain = DOMAINS[toChain];
 
-        if (connectedProvider === 'metamask' && window.ethereum) {
+        if (destDomain === undefined) {
+            showToast('Unsupported destination chain', 'error');
+            return;
+        }
+
+        if (connectedProvider === 'metamask' && window.ethereum && window.ethers) {
             try {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                // Initialize ethers provider
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const accounts = await provider.send('eth_accounts', []);
+                const userAddress = accounts[0];
+
+                // Convert amount to USDC decimals (6)
+                const amountInWei = ethers.utils.parseUnits(amt.toString(), 6);
+                
+                // CCTP requires a bytes32 recipient (padded with 12 bytes of zeros)
+                const mintRecipient = ethers.utils.hexZeroPad(userAddress, 32);
+
+                // Encode the contract call
+                const iface = new ethers.utils.Interface(CCTP_ABI);
+                const data = iface.encodeFunctionData('depositForBurn', [
+                    amountInWei,
+                    destDomain,
+                    mintRecipient,
+                    USDC_NATIVE
+                ]);
+
+                showToast('Approve transaction in MetaMask...', 'info');
+
+                // Send the transaction
                 const txHash = await window.ethereum.request({
                     method: 'eth_sendTransaction',
-                    params: [{ from: accounts[0], to: accounts[0], value: '0x0', data: '0x' }]
+                    params: [{ 
+                        from: userAddress, 
+                        to: CCTP_TOKEN_MESSENGER, 
+                        value: '0x0', 
+                        data: data 
+                    }]
                 });
-                showToast(`Bridge tx sent: ${txHash.substring(0,10)}...`, 'success');
+                
+                showToast(`Bridge tx sent! CCTP will mint on ${toChain}. Hash: ${txHash.substring(0,10)}...`, 'success');
             } catch(e) {
                 showToast(e.code === 4001 ? 'Transaction rejected' : 'Bridge failed', 'error');
+                console.error(e);
                 return;
             }
         } else {
