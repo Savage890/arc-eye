@@ -438,51 +438,7 @@
             </div>
         </div>
 
-        <!-- Bridge -->
-        <div class="rp-card glass-card">
-            <div class="rp-header">
-                <i data-lucide="git-branch" style="width:14px;height:14px;color:#a78bfa;"></i>
-                <h3>Bridge</h3>
-                <span class="badge-live" style="background:#a78bfa;">CROSS-CHAIN</span>
-            </div>
-            <div class="swap-ui" id="bridgePanel">
-                <div class="bridge-chain-row">
-                    <select class="bridge-chain-select" id="bridgeFrom">
-                        <option value="ethereum">Ethereum</option>
-                        <option value="polygon">Polygon</option>
-                        <option value="arbitrum">Arbitrum</option>
-                        <option value="optimism">Optimism</option>
-                        <option value="avalanche">Avalanche</option>
-                    </select>
-                    <div class="bridge-arrow"><i data-lucide="arrow-right" style="width:16px;height:16px;"></i></div>
-                    <select class="bridge-chain-select" id="bridgeTo">
-                        <option value="arc-testnet" selected>Arc Testnet</option>
-                        <option value="ethereum">Ethereum</option>
-                        <option value="polygon">Polygon</option>
-                    </select>
-                </div>
-                <div class="swap-field">
-                    <div class="sf-top">
-                        <label>Amount to Bridge</label>
-                        <span class="sf-balance">Balance: 0.00</span>
-                    </div>
-                    <div class="sf-input-row">
-                        <input type="number" id="bridgeAmount" placeholder="0.00" step="any">
-                        <div class="sf-token">
-                            <img src="https://assets.coingecko.com/coins/images/6319/small/usdc.png" style="width:16px;height:16px;border-radius:50%;" alt="USDC">
-                            USDC
-                        </div>
-                    </div>
-                </div>
-                <div class="bridge-fee-info">
-                    <div class="bf-row"><span>Est. Time</span><span>~2 min</span></div>
-                    <div class="bf-row"><span>Bridge Fee</span><span>0.1%</span></div>
-                    <div class="bf-row"><span>Gas (est.)</span><span>~$0.50</span></div>
-                    <div class="bf-row"><span>You Receive</span><span id="bridgeReceive">0.00 USDC</span></div>
-                </div>
-                <button class="swap-execute-btn" id="bridgeExecBtn">Connect Wallet to Bridge</button>
-            </div>
-        </div>
+
 
 
     </div>

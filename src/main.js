@@ -141,8 +141,6 @@ async function connectWithProvider(provider) {
 
     $('swapExecBtn').textContent = 'Swap Now';
     $('swapExecBtn').classList.add('ready');
-    $('bridgeExecBtn').textContent = 'Bridge Now';
-    $('bridgeExecBtn').classList.add('ready');
 
     $('swapFromBal').textContent = 'Balance: 0.00';
     $('swapToBal').textContent = 'Balance: 0.00';
@@ -162,8 +160,6 @@ function disconnectWallet() {
 
     $('swapExecBtn').textContent = 'Connect Wallet to Swap';
     $('swapExecBtn').classList.remove('ready');
-    $('bridgeExecBtn').textContent = 'Connect Wallet to Bridge';
-    $('bridgeExecBtn').classList.remove('ready');
 
     $('swapFromBal').textContent = 'Balance: 0.00';
     $('swapToBal').textContent = 'Balance: 0.00';
@@ -191,6 +187,7 @@ async function updateVault() {
     if (!walletConnected || !tokens.length) return;
 
     let vaultBalance = 0;
+    let walletUsdcBalance = 0;
     
     if (connectedProvider === 'metamask' && window.ethereum && window.ethers) {
         try {
@@ -200,9 +197,14 @@ async function updateVault() {
                 const contract = new ethers.Contract(ARC_VAULT_ADDRESS, ARC_VAULT_ABI, provider);
                 const bal = await contract.balances(accounts[0]);
                 vaultBalance = parseFloat(ethers.utils.formatEther(bal));
+                
+                const nativeBal = await provider.getBalance(accounts[0]);
+                walletUsdcBalance = parseFloat(ethers.utils.formatEther(nativeBal));
             }
         } catch(e) { console.warn('[ArcEye] Could not read vault contract balance:', e); }
     }
+
+    const sfb = $('swapFromBal'); if(sfb) sfb.textContent = 'Balance: ' + walletUsdcBalance.toFixed(2);
 
     // Build holdings from Smart Contract vault balance (Native USDC on Arc Testnet)
     const holdings = vaultBalance > 0 ? [
@@ -407,7 +409,10 @@ function showToken(t) {
     $('sAth').textContent = usd(t.ath);
     $('sAtl').textContent = usd(t.atl);
     $('sRange').textContent = usd(t.high_24h) + ' / ' + usd(t.low_24h);
-    $('swapToSymbol').textContent = t.symbol.toUpperCase();
+    const toTokenEl = $('swapToSymbol');
+    if (toTokenEl) {
+        toTokenEl.innerHTML = `<img src="${t.image}" style="width:16px;height:16px;border-radius:50%;"> ${t.symbol.toUpperCase()}`;
+    }
     const rate = t.current_price ? (1/t.current_price) : 0;
     $('swapRate').textContent = '1 USDC ≈ ' + rate.toFixed(6) + ' ' + t.symbol.toUpperCase();
 }
@@ -564,53 +569,7 @@ function initSwap() {
     });
 }
 
-// ──────────────────── Bridge ────────────────────
-function initBridge() {
-    $('bridgeAmount')?.addEventListener('input', e => {
-        const amt = parseFloat(e.target.value) || 0;
-        const fee = amt * 0.001;
-        $('bridgeReceive').textContent = (amt - fee).toFixed(2) + ' USDC';
-    });
 
-    $('bridgeExecBtn')?.addEventListener('click', async () => {
-        if (!walletConnected) { openWalletModal(); return; }
-        const amt = parseFloat($('bridgeAmount').value);
-        if (!amt || amt <= 0) { showToast('Enter an amount to bridge', 'warning'); return; }
-        
-        const fromChain = $('bridgeFrom').value;
-        const toChain = $('bridgeTo').value;
-
-        if (connectedProvider === 'metamask' && window.ethereum && window.ethers) {
-            try {
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const signer = provider.getSigner();
-                const userAddress = await signer.getAddress();
-
-                showToast('Approve bridge transaction...', 'info');
-
-                // Execute safe transaction to prevent revert without real CCTP approvals
-                const tx = await signer.sendTransaction({
-                    to: userAddress,
-                    value: 0,
-                    data: '0x'
-                });
-                
-                showToast(`Bridge tx sent: ${tx.hash.substring(0,10)}...`, 'success');
-                await tx.wait();
-                showToast(`Bridged successfully to ${toChain}!`, 'success');
-            } catch(e) {
-                showToast(e.code === 4001 ? 'Transaction rejected' : 'Bridge failed', 'error');
-                console.error(e);
-                return;
-            }
-        } else {
-            showToast(`Bridge initiated: ${amt} USDC from ${fromChain} → ${toChain}`, 'success');
-        }
-        $('bridgeAmount').value = '';
-        $('bridgeReceive').textContent = '0.00 USDC';
-        setTimeout(() => updateVault(), 2000);
-    });
-}
 
 // ──────────────────── Wallet Init ────────────────────
 function initWallet() {
@@ -638,7 +597,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initNav();
     initTF();
     initSwap();
-    initBridge();
     initVault();
     initWallet();
     lucide.createIcons();
