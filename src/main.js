@@ -65,13 +65,13 @@ function initBg() {
             if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
             if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-            ctx.fillStyle = 'rgba(245,212,76,0.08)'; ctx.fill();
+            ctx.fillStyle = 'rgba(0,184,255,0.08)'; ctx.fill();
         });
         for (let i = 0; i < pts.length; i++) for (let j = i+1; j < pts.length; j++) {
             const dx = pts[i].x-pts[j].x, dy = pts[i].y-pts[j].y, d = Math.sqrt(dx*dx+dy*dy);
             if (d < 120) {
                 ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
-                ctx.strokeStyle = `rgba(245,212,76,${0.03*(1-d/120)})`; ctx.stroke();
+                ctx.strokeStyle = `rgba(0,184,255,${0.03*(1-d/120)})`; ctx.stroke();
             }
         }
         requestAnimationFrame(draw);
