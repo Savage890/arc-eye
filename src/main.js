@@ -179,26 +179,34 @@ function disconnectWallet() {
 }
 
 // ──────────────────── Vault ────────────────────
-// Vault reads from the user's connected wallet — nothing is stored on the website.
-// All assets live in the user's own wallet (MetaMask/EVM).
+const ARC_VAULT_ADDRESS = '0x2E4A80Ee44e130a2b9fc04CE4BBE9cF7357dF347';
+const ARC_VAULT_ABI = [
+    "function deposit() public payable",
+    "function withdraw(uint256 amount) public",
+    "function balances(address) view returns (uint256)",
+    "function totalVaultBalance() view returns (uint256)"
+];
+
 async function updateVault() {
     if (!walletConnected || !tokens.length) return;
 
-    // Try to read real wallet balance if MetaMask is connected
-    let ethBalance = 0;
-    if (connectedProvider === 'metamask' && window.ethereum) {
+    let vaultBalance = 0;
+    
+    if (connectedProvider === 'metamask' && window.ethereum && window.ethers) {
         try {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            if (accounts.length) {
-                const bal = await window.ethereum.request({ method: 'eth_getBalance', params: [accounts[0], 'latest'] });
-                ethBalance = parseInt(bal, 16) / 1e18;
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const accounts = await provider.listAccounts();
+            if (accounts.length > 0) {
+                const contract = new ethers.Contract(ARC_VAULT_ADDRESS, ARC_VAULT_ABI, provider);
+                const bal = await contract.balances(accounts[0]);
+                vaultBalance = parseFloat(ethers.utils.formatEther(bal));
             }
-        } catch(e) { console.warn('[ArcEye] Could not read wallet balance:', e); }
+        } catch(e) { console.warn('[ArcEye] Could not read vault contract balance:', e); }
     }
 
-    // Build holdings from real wallet only
-    const holdings = connectedProvider === 'metamask' ? [
-        { id:'ethereum', amount: ethBalance, cost: ethBalance * (tokens.find(t=>t.id==='ethereum')?.current_price || 0) * 0.95 },
+    // Build holdings from Smart Contract vault balance (Native USDC on Arc Testnet)
+    const holdings = vaultBalance > 0 ? [
+        { id:'usd-coin', amount: vaultBalance, cost: vaultBalance * (tokens.find(t=>t.id==='usd-coin')?.current_price || 1) }
     ] : [];
 
     let total = 0, pnl = 0, count = 0;
@@ -224,13 +232,6 @@ async function updateVault() {
 }
 
 // ──────────────────── Vault Actions ────────────────────
-const ARC_VAULT_ADDRESS = '0x2E4A80Ee44e130a2b9fc04CE4BBE9cF7357dF347';
-const ARC_VAULT_ABI = [
-    "function deposit() public payable",
-    "function withdraw(uint256 amount) public",
-    "function balances(address) view returns (uint256)",
-    "function totalVaultBalance() view returns (uint256)"
-];
 
 function initVault() {
     $('vaultDepositBtn')?.addEventListener('click', async () => {
